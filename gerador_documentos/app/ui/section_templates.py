@@ -7,8 +7,8 @@ import customtkinter as ctk
 
 from app.ui.styles import *
 from app.ui.components import (
-    create_section_label, create_body_label, create_aux_label,
-    create_secondary_button,
+    create_section_title, create_body_label, create_aux_label,
+    create_secondary_button, create_card,
 )
 from app.core.template_loader import (
     TEMPLATE_FILES, load_template, load_default_templates, TemplateInfo,
@@ -25,7 +25,7 @@ class SectionTemplates(ctk.CTkFrame):
     """Section showing template status and per-session override controls."""
 
     def __init__(self, parent, on_templates_changed=None):
-        super().__init__(parent, fg_color=FUNDO)
+        super().__init__(parent, fg_color="transparent")
         self.on_templates_changed = on_templates_changed
         self.templates: dict[str, TemplateInfo] = {}
         self.custom_paths: dict[str, str] = {}
@@ -34,36 +34,40 @@ class SectionTemplates(ctk.CTkFrame):
         self._build_ui()
 
     def _build_ui(self):
+        # Card container
+        card = create_card(self)
+        card.pack(fill="x", padx=0, pady=0)
+
         # Section title
-        title = create_section_label(self, "Templates")
-        title.pack(fill="x", padx=10, pady=(10, 5))
+        title = create_section_title(card, "Templates")
+        title.pack(fill="x", padx=16, pady=(12, 6))
 
         # Status line
-        self.status_label = create_body_label(self, "")
-        self.status_label.pack(fill="x", padx=10)
+        self.status_label = create_body_label(card, "")
+        self.status_label.pack(fill="x", padx=16)
 
         # Warning label (hidden by default)
         self.warning_label = ctk.CTkLabel(
-            self, text="", font=(FONT_FAMILY, FONT_SIZE_SMALL),
+            card, text="", font=(FONT_FAMILY, FONT_SIZE_SMALL),
             text_color=STATUS_WARN, anchor="w",
         )
 
         # Expandable section
         self.expand_btn = ctk.CTkButton(
-            self, text="Usar modelo diferente nesta sessão ▾",
+            card, text="Usar modelo diferente nesta sessão ▾",
             font=(FONT_FAMILY, FONT_SIZE_SMALL),
-            fg_color="transparent", hover_color="#ddd9d0",
-            text_color=ACENTO, anchor="w",
+            fg_color="transparent", hover_color=BTN_SECONDARY_HOVER,
+            text_color=DOMINANTE, anchor="w",
             command=self._toggle_expand,
         )
-        self.expand_btn.pack(fill="x", padx=10, pady=(2, 0))
+        self.expand_btn.pack(fill="x", padx=16, pady=(4, 8))
 
         # Expandable content
-        self.expand_frame = ctk.CTkFrame(self, fg_color=FUNDO)
+        self.expand_frame = ctk.CTkFrame(card, fg_color="transparent")
         self.selectors = {}
         for doc_type in ["procuracao", "declaracao", "contrato"]:
-            row = ctk.CTkFrame(self.expand_frame, fg_color=FUNDO)
-            row.pack(fill="x", padx=10, pady=2)
+            row = ctk.CTkFrame(self.expand_frame, fg_color="transparent")
+            row.pack(fill="x", padx=16, pady=2)
 
             label = ctk.CTkLabel(
                 row, text=f"{DOC_TYPE_LABELS[doc_type]}:",
@@ -89,7 +93,7 @@ class SectionTemplates(ctk.CTkFrame):
 
             reset_btn = ctk.CTkButton(
                 row, text="✕", width=28, height=28,
-                fg_color="transparent", hover_color="#ddd9d0",
+                fg_color="transparent", hover_color=BTN_SECONDARY_HOVER,
                 text_color=NEUTRO,
                 command=lambda dt=doc_type: self._reset_custom(dt),
             )
@@ -100,7 +104,7 @@ class SectionTemplates(ctk.CTkFrame):
     def _toggle_expand(self):
         self._expanded = not self._expanded
         if self._expanded:
-            self.expand_frame.pack(fill="x", padx=0, pady=(0, 5))
+            self.expand_frame.pack(fill="x", padx=0, pady=(0, 8))
             self.expand_btn.configure(text="Usar modelo diferente nesta sessão ▴")
         else:
             self.expand_frame.pack_forget()
@@ -123,7 +127,6 @@ class SectionTemplates(ctk.CTkFrame):
     def _reset_custom(self, doc_type: str):
         if doc_type in self.custom_paths:
             del self.custom_paths[doc_type]
-            # Reload from default
             from app.core.config_manager import get_templates_folder
             folder = get_templates_folder()
             if folder:
@@ -141,7 +144,7 @@ class SectionTemplates(ctk.CTkFrame):
         info = self.templates.get(doc_type)
         if info and info.is_custom:
             name = os.path.basename(info.path)
-            sel["status"].configure(text=f"Personalizado: {name}", text_color=ACENTO)
+            sel["status"].configure(text=f"Personalizado: {name}", text_color=STATUS_OK)
         else:
             sel["status"].configure(text="Usando padrão", text_color=AUX_TEXT_COLOR)
 
@@ -172,7 +175,6 @@ class SectionTemplates(ctk.CTkFrame):
         any_custom = bool(self.custom_paths)
 
         if not self.templates or not any(t.loaded for t in self.templates.values()):
-            # No templates loaded
             self.status_label.configure(
                 text="⚠ Templates não carregados — configure a pasta em Preferências",
                 text_color=STATUS_WARN,
@@ -201,7 +203,6 @@ class SectionTemplates(ctk.CTkFrame):
                 text_color=STATUS_OK,
             )
 
-        # Check for missing placeholders warnings
         warnings = []
         for doc_type, info in self.templates.items():
             if info.missing_placeholders:
@@ -215,6 +216,6 @@ class SectionTemplates(ctk.CTkFrame):
 
         if warnings:
             self.warning_label.configure(text="⚠ " + " | ".join(warnings))
-            self.warning_label.pack(fill="x", padx=10, after=self.status_label)
+            self.warning_label.pack(fill="x", padx=16, after=self.status_label)
         else:
             self.warning_label.pack_forget()

@@ -93,16 +93,16 @@ def fill_document(template_path: str, replacements: dict[str, str],
 
 DOC_TYPE_SUFFIXES = {
     "procuracao": "Procuracao",
-    "declaracao": "Declaracao_Hipossuficiencia",
+    "declaracao": "DeclaracaoHipossuficiencia",
     "contrato": "Contrato",
 }
 
 
 def build_output_filename(nome_completo: str, doc_type: str,
                           existing_files: set[str] | None = None) -> str:
-    """Build output filename: {NOME_NORMALIZADO}_{DOCUMENTO}.docx
+    """Build output filename: {NomeCamelCase}_{Documento}.docx
 
-    If the filename already exists in existing_files, append _v2, _v3, etc.
+    If the filename already exists in existing_files, append _2, _3, etc.
     """
     nome_norm = normalize_filename(nome_completo)
     suffix = DOC_TYPE_SUFFIXES.get(doc_type, doc_type)
@@ -117,7 +117,7 @@ def build_output_filename(nome_completo: str, doc_type: str,
 
     version = 2
     while True:
-        filename = f"{base}_v{version}.docx"
+        filename = f"{base}_{version}.docx"
         if filename not in existing_files:
             return filename
         version += 1

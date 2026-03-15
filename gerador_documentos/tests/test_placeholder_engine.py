@@ -154,31 +154,31 @@ class TestFillDocument:
 
 
 class TestBuildOutputFilename:
-    def test_basic(self):
+    def test_basic_camelcase(self):
         name = build_output_filename("Rinaldo da Silva Soares", "procuracao")
-        assert name == "Rinaldo_da_Silva_Soares_Procuracao.docx"
+        assert name == "RinaldoDaSilvaSoares_Procuracao.docx"
 
-    def test_declaracao(self):
+    def test_declaracao_new_suffix(self):
         name = build_output_filename("Maria Santos", "declaracao")
-        assert name == "Maria_Santos_Declaracao_Hipossuficiencia.docx"
+        assert name == "MariaSantos_DeclaracaoHipossuficiencia.docx"
 
     def test_contrato(self):
         name = build_output_filename("João Souza", "contrato")
-        assert name == "Joao_Souza_Contrato.docx"
+        assert name == "JoaoSouza_Contrato.docx"
 
-    def test_duplicate_v2(self):
-        existing = {"Joao_Silva_Procuracao.docx"}
+    def test_duplicate_suffix_2(self):
+        existing = {"JoaoSilva_Procuracao.docx"}
         name = build_output_filename("João Silva", "procuracao", existing)
-        assert name == "Joao_Silva_Procuracao_v2.docx"
+        assert name == "JoaoSilva_Procuracao_2.docx"
 
-    def test_duplicate_v3(self):
+    def test_duplicate_suffix_3(self):
         existing = {
-            "Joao_Silva_Procuracao.docx",
-            "Joao_Silva_Procuracao_v2.docx",
+            "JoaoSilva_Procuracao.docx",
+            "JoaoSilva_Procuracao_2.docx",
         }
         name = build_output_filename("João Silva", "procuracao", existing)
-        assert name == "Joao_Silva_Procuracao_v3.docx"
+        assert name == "JoaoSilva_Procuracao_3.docx"
 
-    def test_accents_removed(self):
+    def test_accents_removed_camelcase(self):
         name = build_output_filename("José André da Conceição", "procuracao")
-        assert name == "Jose_Andre_da_Conceicao_Procuracao.docx"
+        assert name == "JoseAndreDaConceicao_Procuracao.docx"

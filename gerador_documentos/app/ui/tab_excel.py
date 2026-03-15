@@ -7,8 +7,8 @@ import customtkinter as ctk
 
 from app.ui.styles import *
 from app.ui.components import (
-    create_section_label, create_body_label, create_aux_label,
-    create_primary_button, create_secondary_button,
+    create_section_title, create_body_label, create_aux_label,
+    create_primary_button, create_secondary_button, create_card,
 )
 from app.core.excel_reader import read_excel
 from app.core.validators import validate_cpf
@@ -18,18 +18,21 @@ class TabExcel(ctk.CTkFrame):
     """Excel data source tab with client table and selection."""
 
     def __init__(self, parent, on_data_changed=None):
-        super().__init__(parent, fg_color=FUNDO)
+        super().__init__(parent, fg_color="transparent")
         self.on_data_changed = on_data_changed
-        self.excel_data = None  # Result from read_excel
-        self.client_vars = []  # List of (row_num, Cliente, BooleanVar)
+        self.excel_data = None
+        self.client_vars = []
         self.filepath = ""
 
         self._build_ui()
 
     def _build_ui(self):
+        card = create_card(self)
+        card.pack(fill="both", expand=True, padx=0, pady=0)
+
         # File selector row
-        file_row = ctk.CTkFrame(self, fg_color=FUNDO)
-        file_row.pack(fill="x", padx=10, pady=(10, 5))
+        file_row = ctk.CTkFrame(card, fg_color="transparent")
+        file_row.pack(fill="x", padx=16, pady=(12, 8))
 
         btn = create_primary_button(file_row, "Selecionar arquivo", command=self._select_file, width=160)
         btn.pack(side="left")
@@ -39,12 +42,12 @@ class TabExcel(ctk.CTkFrame):
 
         # Error/warning area
         self.error_label = ctk.CTkLabel(
-            self, text="", font=(FONT_FAMILY, FONT_SIZE_SMALL),
-            text_color=ERRO, anchor="w", wraplength=700,
+            card, text="", font=(FONT_FAMILY, FONT_SIZE_SMALL),
+            text_color=ERRO, anchor="w", wraplength=680,
         )
 
         # Buttons row
-        self.btn_row = ctk.CTkFrame(self, fg_color=FUNDO)
+        self.btn_row = ctk.CTkFrame(card, fg_color="transparent")
 
         self.select_all_btn = create_secondary_button(
             self.btn_row, "Selecionar todos",
@@ -62,8 +65,8 @@ class TabExcel(ctk.CTkFrame):
 
         # Scrollable table area
         self.table_frame = ctk.CTkScrollableFrame(
-            self, fg_color=ENTRY_BG, border_color=ENTRY_BORDER,
-            border_width=1, corner_radius=4,
+            card, fg_color=CARD_BG, border_color=CARD_BORDER,
+            border_width=1, corner_radius=ENTRY_RADIUS,
         )
 
     def _select_file(self):
@@ -77,7 +80,6 @@ class TabExcel(ctk.CTkFrame):
             self._load_data(filepath)
 
     def _load_data(self, filepath: str):
-        # Clear previous
         self.client_vars.clear()
         for w in self.table_frame.winfo_children():
             w.destroy()
@@ -89,21 +91,20 @@ class TabExcel(ctk.CTkFrame):
 
         if self.excel_data["errors"]:
             self.error_label.configure(text="⚠ " + " | ".join(self.excel_data["errors"]))
-            self.error_label.pack(fill="x", padx=10, pady=(5, 0))
+            self.error_label.pack(fill="x", padx=16, pady=(5, 0))
 
         clients = self.excel_data["clients"]
         if not clients:
             if not self.excel_data["errors"]:
                 self.error_label.configure(text="Nenhum cliente encontrado na planilha.")
-                self.error_label.pack(fill="x", padx=10, pady=(5, 0))
+                self.error_label.pack(fill="x", padx=16, pady=(5, 0))
             return
 
-        # Show controls
-        self.btn_row.pack(fill="x", padx=10, pady=(5, 2))
-        self.table_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.btn_row.pack(fill="x", padx=16, pady=(5, 4))
+        self.table_frame.pack(fill="both", expand=True, padx=16, pady=(0, 12))
 
         # Header row
-        header = ctk.CTkFrame(self.table_frame, fg_color="#e0ddd5")
+        header = ctk.CTkFrame(self.table_frame, fg_color=ENTRY_BG)
         header.pack(fill="x", pady=(0, 2))
 
         ctk.CTkLabel(header, text="", width=40).pack(side="left")
@@ -135,8 +136,8 @@ class TabExcel(ctk.CTkFrame):
 
             row_frame = ctk.CTkFrame(
                 self.table_frame,
-                fg_color=ENTRY_BG if not has_warning else "#fff5e5",
-                border_color=ENTRY_BORDER if not has_warning else AVISO,
+                fg_color=CARD_BG if not has_warning else "#fff8ee",
+                border_color=CARD_BORDER if not has_warning else AVISO,
                 border_width=1 if has_warning else 0,
                 corner_radius=2,
             )
@@ -144,7 +145,7 @@ class TabExcel(ctk.CTkFrame):
 
             cb = ctk.CTkCheckBox(
                 row_frame, text="", variable=var, width=40,
-                fg_color=DOMINANTE, hover_color=ACENTO,
+                fg_color=DOMINANTE, hover_color=BTN_PRIMARY_HOVER,
                 command=self._on_selection_changed,
             )
             cb.pack(side="left")
@@ -181,12 +182,6 @@ class TabExcel(ctk.CTkFrame):
                 font=(FONT_FAMILY, FONT_SIZE_SMALL),
                 text_color=status_color, width=100, anchor="w",
             ).pack(side="left", padx=5)
-
-            # Tooltip for warnings
-            if has_warning:
-                warnings = row_warnings[row_num]
-                tip_text = "\n".join(warnings)
-                row_frame.bind("<Enter>", lambda e, t=tip_text: None)  # TODO: tooltip
 
         self._on_selection_changed()
 

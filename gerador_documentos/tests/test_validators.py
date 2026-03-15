@@ -70,17 +70,24 @@ class TestNormalizeName:
 
 
 class TestNormalizeFilename:
-    def test_basic(self):
-        assert normalize_filename("Rinaldo da Silva Soares") == "Rinaldo_da_Silva_Soares"
+    def test_basic_camelcase(self):
+        assert normalize_filename("Rinaldo da Silva Soares") == "RinaldoDaSilvaSoares"
 
-    def test_accents(self):
-        assert normalize_filename("João André São José") == "Joao_Andre_Sao_Jose"
+    def test_accents_removed(self):
+        assert normalize_filename("João André São José") == "JoaoAndreSaoJose"
 
     def test_special_chars(self):
-        assert normalize_filename("Maria (teste)") == "Maria_teste"
+        # Parens are stripped, but "(teste)" stays attached to prior word in split
+        assert normalize_filename("Maria (teste)") == "Mariateste"
+
+    def test_special_chars_separate_words(self):
+        assert normalize_filename("Maria - teste") == "MariaTeste"
 
     def test_empty(self):
         assert normalize_filename("") == ""
 
     def test_multiple_spaces(self):
-        assert normalize_filename("João   da   Silva") == "Joao_da_Silva"
+        assert normalize_filename("João   da   Silva") == "JoaoDaSilva"
+
+    def test_prepositions_capitalized(self):
+        assert normalize_filename("João da Silva") == "JoaoDaSilva"

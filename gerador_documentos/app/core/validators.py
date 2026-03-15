@@ -55,17 +55,23 @@ def validate_cpf(cpf: str) -> bool:
 
 
 def normalize_filename(name: str) -> str:
-    """Normalize name for filename: remove accents, replace spaces with _, strip special chars."""
+    """Normalize name for filename: CamelCase, no spaces, no accents, no special chars.
+
+    All words are capitalized (including prepositions like da, de, do) and joined
+    without separators. Accents and special characters are removed.
+    Example: "João da Silva Souza" → "JoaoDaSilvaSouza"
+    """
+    if not name:
+        return ""
     # Remove accents
     nfkd = unicodedata.normalize("NFKD", name)
     ascii_str = nfkd.encode("ascii", "ignore").decode("ascii")
-    # Replace spaces with underscores
-    ascii_str = ascii_str.replace(" ", "_")
-    # Remove anything that's not alphanumeric or underscore
-    ascii_str = re.sub(r"[^a-zA-Z0-9_]", "", ascii_str)
-    # Collapse multiple underscores
-    ascii_str = re.sub(r"_+", "_", ascii_str)
-    return ascii_str.strip("_")
+    # Split into words and capitalize each
+    words = ascii_str.split()
+    camel = "".join(word.capitalize() for word in words)
+    # Remove any remaining non-alphanumeric characters
+    camel = re.sub(r"[^a-zA-Z0-9]", "", camel)
+    return camel
 
 
 REQUIRED_FIELDS_MANUAL = [

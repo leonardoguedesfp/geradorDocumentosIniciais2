@@ -11,7 +11,8 @@ import customtkinter as ctk
 from app.ui.styles import *
 from app.ui.components import (
     create_header, create_primary_button, create_secondary_button,
-    create_section_label, create_body_label, create_aux_label,
+    create_section_title, create_body_label, create_aux_label,
+    create_card,
 )
 from app.ui.section_templates import SectionTemplates
 from app.ui.tab_excel import TabExcel
@@ -55,39 +56,39 @@ class MainWindow(ctk.CTk):
         # Gear icon for preferences
         gear_btn = ctk.CTkButton(
             header, text="⚙", width=40, height=40,
-            fg_color="transparent", hover_color=ACENTO,
+            fg_color="transparent", hover_color=BTN_PRIMARY_HOVER,
             text_color=HEADER_FG,
             font=(FONT_FAMILY, 20),
             command=self._open_preferences,
         )
         gear_btn.pack(side="right", padx=15)
 
-        # Main scrollable content
-        content = ctk.CTkFrame(self, fg_color=FUNDO)
-        content.pack(fill="both", expand=True)
+        # Scrollable main content
+        main_scroll = ctk.CTkScrollableFrame(self, fg_color=FUNDO)
+        main_scroll.pack(fill="both", expand=True)
+
+        # Centered container with max width
+        content = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        content.pack(fill="x", expand=True, padx=max((900 - MAX_CONTENT_WIDTH) // 2, 16), pady=12)
 
         # --- Template section ---
         self.section_templates = SectionTemplates(
             content, on_templates_changed=self._on_templates_changed,
         )
-        self.section_templates.pack(fill="x", padx=10, pady=(5, 0))
-
-        # --- Separator ---
-        sep1 = ctk.CTkFrame(content, fg_color=NEUTRO, height=1)
-        sep1.pack(fill="x", padx=20, pady=5)
+        self.section_templates.pack(fill="x", pady=(0, 8))
 
         # --- Data source tabs ---
-        tab_section = ctk.CTkFrame(content, fg_color=FUNDO)
-        tab_section.pack(fill="both", expand=True, padx=10)
+        tab_card = create_card(content)
+        tab_card.pack(fill="both", expand=True, pady=(0, 8))
 
-        tab_header = ctk.CTkFrame(tab_section, fg_color=FUNDO)
+        tab_header = ctk.CTkFrame(tab_card, fg_color="transparent")
         tab_header.pack(fill="x")
 
         self.tab_excel_btn = ctk.CTkButton(
             tab_header, text="Excel / Forms",
             font=(FONT_FAMILY, FONT_SIZE_NORMAL, "bold"),
             fg_color=TAB_ACTIVE_BG, text_color=TAB_ACTIVE_FG,
-            hover_color=ACENTO, corner_radius=0, height=36,
+            hover_color=BTN_PRIMARY_HOVER, corner_radius=0, height=36,
             command=lambda: self._switch_tab("excel"),
         )
         self.tab_excel_btn.pack(side="left")
@@ -96,32 +97,31 @@ class MainWindow(ctk.CTk):
             tab_header, text="Dados Manuais",
             font=(FONT_FAMILY, FONT_SIZE_NORMAL),
             fg_color=TAB_INACTIVE_BG, text_color=TAB_INACTIVE_FG,
-            hover_color=ACENTO, corner_radius=0, height=36,
+            hover_color=BTN_SECONDARY_HOVER, corner_radius=0, height=36,
             command=lambda: self._switch_tab("manual"),
         )
         self.tab_manual_btn.pack(side="left")
 
-        self.tab_content = ctk.CTkFrame(tab_section, fg_color=FUNDO)
-        self.tab_content.pack(fill="both", expand=True)
+        self.tab_content = ctk.CTkFrame(tab_card, fg_color="transparent")
+        self.tab_content.pack(fill="both", expand=True, padx=0, pady=0)
 
         self.tab_excel = TabExcel(self.tab_content, on_data_changed=self._update_generate_button)
         self.tab_manual = TabManual(self.tab_content, on_data_changed=self._update_generate_button)
 
         self.tab_excel.pack(fill="both", expand=True)
 
-        # --- Separator ---
-        sep2 = ctk.CTkFrame(content, fg_color=NEUTRO, height=1)
-        sep2.pack(fill="x", padx=20, pady=5)
-
         # --- Bottom section: document selection + generate ---
-        bottom = ctk.CTkFrame(content, fg_color=FUNDO)
-        bottom.pack(fill="x", padx=10, pady=(0, 10))
+        bottom_card = create_card(content)
+        bottom_card.pack(fill="x", pady=(0, 8))
 
-        doc_row = ctk.CTkFrame(bottom, fg_color=FUNDO)
-        doc_row.pack(fill="x", pady=(5, 5))
+        doc_row = ctk.CTkFrame(bottom_card, fg_color="transparent")
+        doc_row.pack(fill="x", padx=16, pady=(12, 8))
 
-        doc_label = create_section_label(doc_row, "Documentos a gerar")
-        doc_label.pack(side="left", padx=(0, 15))
+        doc_label = create_section_title(doc_row, "Documentos a gerar")
+        doc_label.pack(fill="x", pady=(0, 6))
+
+        checks_row = ctk.CTkFrame(bottom_card, fg_color="transparent")
+        checks_row.pack(fill="x", padx=16)
 
         self.doc_vars = {}
         self.doc_checks = {}
@@ -129,10 +129,10 @@ class MainWindow(ctk.CTk):
             var = ctk.BooleanVar(value=True)
             self.doc_vars[doc_type] = var
             cb = ctk.CTkCheckBox(
-                doc_row, text=label, variable=var,
+                checks_row, text=label, variable=var,
                 font=(FONT_FAMILY, FONT_SIZE_NORMAL),
                 text_color=BODY_TEXT_COLOR,
-                fg_color=DOMINANTE, hover_color=ACENTO,
+                fg_color=DOMINANTE, hover_color=BTN_PRIMARY_HOVER,
                 command=self._update_generate_button,
             )
             cb.pack(side="left", padx=(0, 15))
@@ -140,13 +140,13 @@ class MainWindow(ctk.CTk):
 
         # Output folder warning
         self.output_warning = ctk.CTkLabel(
-            bottom, text="", font=(FONT_FAMILY, FONT_SIZE_SMALL),
+            bottom_card, text="", font=(FONT_FAMILY, FONT_SIZE_SMALL),
             text_color=AVISO, anchor="w",
         )
 
         # Generate button row
-        gen_row = ctk.CTkFrame(bottom, fg_color=FUNDO)
-        gen_row.pack(fill="x", pady=(5, 0))
+        gen_row = ctk.CTkFrame(bottom_card, fg_color="transparent")
+        gen_row.pack(fill="x", padx=16, pady=(12, 12))
 
         self.generate_btn = create_primary_button(
             gen_row, "Gerar Documentos", command=self._generate, width=200, height=40,
@@ -158,18 +158,18 @@ class MainWindow(ctk.CTk):
 
         # Progress bar
         self.progress = ctk.CTkProgressBar(
-            bottom, fg_color=ENTRY_BG, progress_color=ACENTO, height=8,
+            bottom_card, fg_color=ENTRY_BG, progress_color=STATUS_OK, height=8,
         )
         self.progress.set(0)
 
         # Result label
         self.result_label = ctk.CTkLabel(
-            bottom, text="", font=(FONT_FAMILY, FONT_SIZE_NORMAL),
-            text_color=STATUS_OK, anchor="w", wraplength=800,
+            bottom_card, text="", font=(FONT_FAMILY, FONT_SIZE_NORMAL),
+            text_color=STATUS_OK, anchor="w", wraplength=680,
         )
 
         self.open_folder_btn = create_secondary_button(
-            bottom, "Abrir pasta", command=self._open_output_folder, width=120,
+            bottom_card, "Abrir pasta", command=self._open_output_folder, width=120,
         )
 
     def _load_initial_state(self):
@@ -218,12 +218,10 @@ class MainWindow(ctk.CTk):
         """Update the generate button state and tooltip."""
         reasons = []
 
-        # Check if any document is selected
         any_doc = any(v.get() for v in self.doc_vars.values())
         if not any_doc:
             reasons.append("Nenhum documento selecionado")
 
-        # Check data source
         if self._active_tab == "excel":
             if not self.tab_excel.has_data():
                 reasons.append("Nenhum cliente selecionado")
@@ -231,14 +229,13 @@ class MainWindow(ctk.CTk):
             if not self.tab_manual.has_data():
                 reasons.append("Preencha os dados do cliente")
 
-        # Check output folder
         output_folder = get_output_folder(self.config)
         if not output_folder or not os.path.isdir(output_folder):
             reasons.append("Pasta de saída não configurada")
             self.output_warning.configure(
                 text="⚠ Pasta de saída não configurada — defina em Preferências"
             )
-            self.output_warning.pack(fill="x", pady=(2, 0))
+            self.output_warning.pack(fill="x", padx=16, pady=(4, 0))
         else:
             self.output_warning.pack_forget()
 
@@ -263,14 +260,13 @@ class MainWindow(ctk.CTk):
         self.generate_btn.configure(state="disabled")
         self.result_label.pack_forget()
         self.open_folder_btn.pack_forget()
-        self.progress.pack(fill="x", pady=(5, 0))
+        self.progress.pack(fill="x", padx=16, pady=(5, 0))
         self.progress.set(0)
 
         output_folder = get_output_folder(self.config)
         templates = self.section_templates.templates
         doc_types = [dt for dt, var in self.doc_vars.items() if var.get()]
 
-        # Gather clients
         if self._active_tab == "excel":
             clients = self.tab_excel.get_selected_clients()
         else:
@@ -286,7 +282,6 @@ class MainWindow(ctk.CTk):
             self.progress.pack_forget()
             return
 
-        # Run generation in thread
         def do_generate():
             all_results = []
             existing_files = set()
@@ -297,12 +292,10 @@ class MainWindow(ctk.CTk):
                 data = cliente.to_placeholder_dict()
                 data["DATA_EXTENSO"] = data_extenso()
 
-                # Normalize CEP in the address
                 data["CPF"] = data.get("CPF", "")
                 cep_raw = cliente.cep.strip()
                 if cep_raw:
                     data["ENDERECO_COMPLETO"] = cliente.endereco_completo()
-                    # Re-normalize CEP in address
                     cep_norm = normalize_cep(cep_raw)
                     data["ENDERECO_COMPLETO"] = data["ENDERECO_COMPLETO"].replace(
                         f"CEP {cep_raw}", f"CEP {cep_norm}"
@@ -349,8 +342,8 @@ class MainWindow(ctk.CTk):
             )
             self.result_label.configure(text=msg, text_color=AVISO)
 
-        self.result_label.pack(fill="x", pady=(5, 0))
-        self.open_folder_btn.pack(pady=(5, 0), anchor="w")
+        self.result_label.pack(fill="x", padx=16, pady=(5, 0))
+        self.open_folder_btn.pack(padx=16, pady=(5, 12), anchor="w")
         self._output_folder_for_open = output_folder
 
     def _open_output_folder(self):
