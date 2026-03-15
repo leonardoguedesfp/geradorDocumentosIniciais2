@@ -24,6 +24,7 @@ def create_header(parent) -> ctk.CTkFrame:
 
 def create_primary_button(parent, text, command=None, **kwargs) -> ctk.CTkButton:
     """Create a primary action button."""
+    font = kwargs.pop("font", (FONT_FAMILY, FONT_SIZE_NORMAL))
     btn = ctk.CTkButton(
         parent,
         text=text,
@@ -31,7 +32,7 @@ def create_primary_button(parent, text, command=None, **kwargs) -> ctk.CTkButton
         fg_color=BTN_PRIMARY_BG,
         hover_color=BTN_PRIMARY_HOVER,
         text_color=BTN_PRIMARY_FG,
-        font=(FONT_FAMILY, FONT_SIZE_NORMAL),
+        font=font,
         corner_radius=6,
         **kwargs,
     )
@@ -40,6 +41,7 @@ def create_primary_button(parent, text, command=None, **kwargs) -> ctk.CTkButton
 
 def create_secondary_button(parent, text, command=None, **kwargs) -> ctk.CTkButton:
     """Create a secondary action button."""
+    font = kwargs.pop("font", (FONT_FAMILY, FONT_SIZE_NORMAL))
     btn = ctk.CTkButton(
         parent,
         text=text,
@@ -47,7 +49,7 @@ def create_secondary_button(parent, text, command=None, **kwargs) -> ctk.CTkButt
         fg_color=BTN_SECONDARY_BG,
         hover_color=BTN_SECONDARY_HOVER,
         text_color=BTN_SECONDARY_FG,
-        font=(FONT_FAMILY, FONT_SIZE_NORMAL),
+        font=font,
         corner_radius=6,
         **kwargs,
     )
