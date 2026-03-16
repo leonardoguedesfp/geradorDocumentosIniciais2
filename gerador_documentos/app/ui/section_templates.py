@@ -1,4 +1,4 @@
-"""Template status section with optional per-session override."""
+"""Template selection section — direct file selection of .docx templates."""
 
 import os
 from tkinter import filedialog
@@ -8,43 +8,62 @@ import customtkinter as ctk
 from app.ui.styles import *
 from app.ui.components import (
     create_section_title, create_body_label, create_aux_label,
-    create_secondary_button, create_card,
+    create_primary_button, create_secondary_button, create_card,
 )
 from app.core.template_loader import (
-    TEMPLATE_FILES, load_template, load_default_templates, TemplateInfo,
+    TEMPLATE_FILES, load_template, TemplateInfo,
 )
 
 DOC_TYPE_LABELS = {
     "procuracao": "Procuração",
-    "declaracao": "Declaração",
-    "contrato": "Contrato",
+    "declaracao": "Declaração de Hipossuficiência",
+    "contrato": "Contrato de Prestação de Serviços",
 }
+
+# Reverse map: filename → doc_type
+_FILENAME_TO_DOCTYPE = {v: k for k, v in TEMPLATE_FILES.items()}
 
 
 class SectionTemplates(ctk.CTkFrame):
-    """Section showing template status and per-session override controls."""
+    """Section for selecting template files directly."""
 
     def __init__(self, parent, on_templates_changed=None):
         super().__init__(parent, fg_color="transparent")
         self.on_templates_changed = on_templates_changed
         self.templates: dict[str, TemplateInfo] = {}
-        self.custom_paths: dict[str, str] = {}
-        self._expanded = False
 
         self._build_ui()
 
     def _build_ui(self):
-        # Card container
         card = create_card(self)
         card.pack(fill="x", padx=0, pady=0)
 
-        # Section title
-        title = create_section_title(card, "Templates")
-        title.pack(fill="x", padx=16, pady=(12, 6))
+        # Header row with title + button
+        header_row = ctk.CTkFrame(card, fg_color="transparent")
+        header_row.pack(fill="x", padx=16, pady=(12, 6))
+
+        title = create_section_title(header_row, "Templates")
+        title.pack(side="left")
+
+        self.select_btn = create_primary_button(
+            header_row, "Selecionar arquivos",
+            command=self._select_files, width=160,
+        )
+        self.select_btn.pack(side="right")
 
         # Status line
-        self.status_label = create_body_label(card, "")
+        self.status_label = create_body_label(card, "Nenhum template selecionado")
+        self.status_label.configure(text_color=AUX_TEXT_COLOR)
         self.status_label.pack(fill="x", padx=16)
+
+        # Per-template status labels
+        self.template_statuses = {}
+        for doc_type in ["procuracao", "declaracao", "contrato"]:
+            lbl = ctk.CTkLabel(
+                card, text="", font=(FONT_FAMILY, FONT_SIZE_SMALL),
+                text_color=AUX_TEXT_COLOR, anchor="w",
+            )
+            self.template_statuses[doc_type] = lbl
 
         # Warning label (hidden by default)
         self.warning_label = ctk.CTkLabel(
@@ -52,170 +71,92 @@ class SectionTemplates(ctk.CTkFrame):
             text_color=STATUS_WARN, anchor="w",
         )
 
-        # Expandable section
-        self.expand_btn = ctk.CTkButton(
-            card, text="Usar modelo diferente nesta sessão ▾",
-            font=(FONT_FAMILY, FONT_SIZE_SMALL),
-            fg_color="transparent", hover_color=BTN_SECONDARY_HOVER,
-            text_color=DOMINANTE, anchor="w",
-            command=self._toggle_expand,
-        )
-        self.expand_btn.pack(fill="x", padx=16, pady=(4, 8))
+        # Bottom padding
+        self._card_pad = ctk.CTkFrame(card, fg_color="transparent", height=8)
+        self._card_pad.pack(fill="x")
 
-        # Expandable content
-        self.expand_frame = ctk.CTkFrame(card, fg_color="transparent")
-        self.selectors = {}
-        for doc_type in ["procuracao", "declaracao", "contrato"]:
-            row = ctk.CTkFrame(self.expand_frame, fg_color="transparent")
-            row.pack(fill="x", padx=16, pady=2)
-
-            label = ctk.CTkLabel(
-                row, text=f"{DOC_TYPE_LABELS[doc_type]}:",
-                font=(FONT_FAMILY, FONT_SIZE_SMALL),
-                text_color=BODY_TEXT_COLOR, width=100, anchor="w",
-            )
-            label.pack(side="left")
-
-            status = ctk.CTkLabel(
-                row, text="Usando padrão",
-                font=(FONT_FAMILY, FONT_SIZE_SMALL),
-                text_color=AUX_TEXT_COLOR, anchor="w",
-            )
-            status.pack(side="left", padx=(5, 10), expand=True, fill="x")
-
-            btn = create_secondary_button(
-                row, "Selecionar...",
-                command=lambda dt=doc_type: self._select_custom(dt),
-                width=100, height=28,
-                font=(FONT_FAMILY, FONT_SIZE_SMALL),
-            )
-            btn.pack(side="right")
-
-            reset_btn = ctk.CTkButton(
-                row, text="✕", width=28, height=28,
-                fg_color="transparent", hover_color=BTN_SECONDARY_HOVER,
-                text_color=NEUTRO,
-                command=lambda dt=doc_type: self._reset_custom(dt),
-            )
-            reset_btn.pack(side="right", padx=(0, 5))
-
-            self.selectors[doc_type] = {"status": status, "btn": btn, "reset": reset_btn}
-
-    def _toggle_expand(self):
-        self._expanded = not self._expanded
-        if self._expanded:
-            self.expand_frame.pack(fill="x", padx=0, pady=(0, 8))
-            self.expand_btn.configure(text="Usar modelo diferente nesta sessão ▴")
-        else:
-            self.expand_frame.pack_forget()
-            self.expand_btn.configure(text="Usar modelo diferente nesta sessão ▾")
-
-    def _select_custom(self, doc_type: str):
-        filepath = filedialog.askopenfilename(
-            title=f"Selecionar template para {DOC_TYPE_LABELS[doc_type]}",
+    def _select_files(self):
+        """Open file dialog to select template .docx files."""
+        filepaths = filedialog.askopenfilenames(
+            title="Selecionar arquivos de template (.docx)",
             filetypes=[("Word Document", "*.docx")],
         )
-        if filepath:
-            info = load_template(filepath, doc_type, is_custom=True)
-            self.templates[doc_type] = info
-            self.custom_paths[doc_type] = filepath
-            self._update_selector_status(doc_type)
-            self._update_status_line()
-            if self.on_templates_changed:
-                self.on_templates_changed()
+        if not filepaths:
+            return
 
-    def _reset_custom(self, doc_type: str):
-        if doc_type in self.custom_paths:
-            del self.custom_paths[doc_type]
-            from app.core.config_manager import get_templates_folder
-            folder = get_templates_folder()
-            if folder:
-                filepath = os.path.join(folder, TEMPLATE_FILES[doc_type])
-                self.templates[doc_type] = load_template(filepath, doc_type)
-            else:
-                self.templates[doc_type] = TemplateInfo(doc_type=doc_type, path="")
-            self._update_selector_status(doc_type)
-            self._update_status_line()
-            if self.on_templates_changed:
-                self.on_templates_changed()
+        recognized = {}
+        for filepath in filepaths:
+            basename = os.path.basename(filepath)
+            doc_type = _FILENAME_TO_DOCTYPE.get(basename)
+            if doc_type:
+                info = load_template(filepath, doc_type)
+                recognized[doc_type] = info
 
-    def _update_selector_status(self, doc_type: str):
-        sel = self.selectors[doc_type]
-        info = self.templates.get(doc_type)
-        if info and info.is_custom:
-            name = os.path.basename(info.path)
-            sel["status"].configure(text=f"Personalizado: {name}", text_color=STATUS_OK)
-        else:
-            sel["status"].configure(text="Usando padrão", text_color=AUX_TEXT_COLOR)
-
-    def load_defaults(self, folder: str):
-        """Load default templates from the given folder."""
-        if folder and os.path.isdir(folder):
-            defaults = load_default_templates(folder)
-            for doc_type, info in defaults.items():
-                if doc_type not in self.custom_paths:
-                    self.templates[doc_type] = info
-        else:
-            for doc_type in TEMPLATE_FILES:
-                if doc_type not in self.custom_paths:
-                    self.templates[doc_type] = TemplateInfo(doc_type=doc_type, path="")
-
-        self._update_status_line()
-        for doc_type in self.selectors:
-            self._update_selector_status(doc_type)
+        # Merge with existing (overwrite recognized ones)
+        self.templates.update(recognized)
+        self._update_display()
 
         if self.on_templates_changed:
             self.on_templates_changed()
 
-    def _update_status_line(self):
-        all_loaded = all(
-            t.loaded for t in self.templates.values()
-        ) if self.templates else False
+    def _update_display(self):
+        """Update status labels based on loaded templates."""
+        loaded_count = sum(1 for t in self.templates.values() if t.loaded)
+        total = len(TEMPLATE_FILES)
 
-        any_custom = bool(self.custom_paths)
+        # Hide all per-template labels first
+        for lbl in self.template_statuses.values():
+            lbl.pack_forget()
+        self.warning_label.pack_forget()
 
-        if not self.templates or not any(t.loaded for t in self.templates.values()):
+        if loaded_count == 0:
             self.status_label.configure(
-                text="⚠ Templates não carregados — configure a pasta em Preferências",
-                text_color=STATUS_WARN,
+                text="Nenhum template selecionado",
+                text_color=AUX_TEXT_COLOR,
             )
-            self.warning_label.pack_forget()
             return
 
-        if all_loaded and not any_custom:
+        if loaded_count == total:
             self.status_label.configure(
-                text="✔ Usando modelos padrão",
+                text=f"✔ {loaded_count}/{total} templates carregados",
                 text_color=STATUS_OK,
             )
         else:
-            parts = []
-            for doc_type in ["procuracao", "declaracao", "contrato"]:
-                info = self.templates.get(doc_type)
-                label = DOC_TYPE_LABELS[doc_type]
-                if info and info.is_custom:
-                    parts.append(f"{label}: modelo personalizado")
-                elif info and info.loaded:
-                    parts.append(f"{label}: padrão")
-                else:
-                    parts.append(f"{label}: não carregado")
             self.status_label.configure(
-                text="✔ " + " | ".join(parts),
-                text_color=STATUS_OK,
+                text=f"⚠ {loaded_count}/{total} templates carregados",
+                text_color=STATUS_WARN,
             )
 
+        # Show per-template status
+        for doc_type in ["procuracao", "declaracao", "contrato"]:
+            lbl = self.template_statuses[doc_type]
+            label_name = DOC_TYPE_LABELS[doc_type]
+            info = self.templates.get(doc_type)
+            if info and info.loaded:
+                fname = os.path.basename(info.path)
+                lbl.configure(
+                    text=f"  ✔ {label_name}: {fname}",
+                    text_color=STATUS_OK,
+                )
+            else:
+                lbl.configure(
+                    text=f"  ✕ {label_name}: não selecionado",
+                    text_color=AVISO,
+                )
+            lbl.pack(fill="x", padx=16, after=self.status_label)
+
+        # Show warnings for missing placeholders
         warnings = []
         for doc_type, info in self.templates.items():
             if info.missing_placeholders:
-                label = DOC_TYPE_LABELS[doc_type]
+                label_name = DOC_TYPE_LABELS[doc_type]
                 warnings.append(
-                    f"{label}: placeholders ausentes: {', '.join(info.missing_placeholders)}"
+                    f"{label_name}: placeholders ausentes: {', '.join(info.missing_placeholders)}"
                 )
             if info.error:
-                label = DOC_TYPE_LABELS[doc_type]
-                warnings.append(f"{label}: {info.error}")
+                label_name = DOC_TYPE_LABELS[doc_type]
+                warnings.append(f"{label_name}: {info.error}")
 
         if warnings:
             self.warning_label.configure(text="⚠ " + " | ".join(warnings))
-            self.warning_label.pack(fill="x", padx=16, after=self.status_label)
-        else:
-            self.warning_label.pack_forget()
+            self.warning_label.pack(fill="x", padx=16, pady=(2, 0))

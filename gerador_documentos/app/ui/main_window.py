@@ -4,7 +4,6 @@ import os
 import subprocess
 import sys
 import threading
-from tkinter import filedialog
 
 import customtkinter as ctk
 
@@ -17,10 +16,9 @@ from app.ui.components import (
 from app.ui.section_templates import SectionTemplates
 from app.ui.tab_excel import TabExcel
 from app.ui.tab_manual import TabManual
-from app.ui.preferences_window import PreferencesWindow
-from app.core.config_manager import load_config, get_templates_folder, get_output_folder
-from app.core.placeholder_engine import generate_documents, data_extenso, DOC_TYPE_SUFFIXES
-from app.core.validators import validate_cpf, normalize_cep
+from app.core.placeholder_engine import generate_documents, data_extenso
+from app.core.output_manager import create_output_folder
+from app.core.validators import normalize_cep
 
 
 DOC_LABELS = {
@@ -43,25 +41,13 @@ class MainWindow(ctk.CTk):
 
         ctk.set_appearance_mode("light")
 
-        self.config = load_config()
         self._active_tab = "excel"
 
         self._build_ui()
-        self._load_initial_state()
 
     def _build_ui(self):
-        # Header
-        header = create_header(self)
-
-        # Gear icon for preferences
-        gear_btn = ctk.CTkButton(
-            header, text="⚙", width=40, height=40,
-            fg_color="transparent", hover_color=BTN_PRIMARY_HOVER,
-            text_color=HEADER_FG,
-            font=(FONT_FAMILY, 20),
-            command=self._open_preferences,
-        )
-        gear_btn.pack(side="right", padx=15)
+        # Header (no gear icon)
+        create_header(self)
 
         # Scrollable main content
         main_scroll = ctk.CTkScrollableFrame(self, fg_color=FUNDO)
@@ -138,12 +124,6 @@ class MainWindow(ctk.CTk):
             cb.pack(side="left", padx=(0, 15))
             self.doc_checks[doc_type] = cb
 
-        # Output folder warning
-        self.output_warning = ctk.CTkLabel(
-            bottom_card, text="", font=(FONT_FAMILY, FONT_SIZE_SMALL),
-            text_color=AVISO, anchor="w",
-        )
-
         # Generate button row
         gen_row = ctk.CTkFrame(bottom_card, fg_color="transparent")
         gen_row.pack(fill="x", padx=16, pady=(12, 12))
@@ -172,9 +152,7 @@ class MainWindow(ctk.CTk):
             bottom_card, "Abrir pasta", command=self._open_output_folder, width=120,
         )
 
-    def _load_initial_state(self):
-        templates_folder = get_templates_folder(self.config)
-        self.section_templates.load_defaults(templates_folder)
+        # Initial button state
         self._update_generate_button()
 
     def _switch_tab(self, tab_name: str):
@@ -229,31 +207,12 @@ class MainWindow(ctk.CTk):
             if not self.tab_manual.has_data():
                 reasons.append("Preencha os dados do cliente")
 
-        output_folder = get_output_folder(self.config)
-        if not output_folder or not os.path.isdir(output_folder):
-            reasons.append("Pasta de saída não configurada")
-            self.output_warning.configure(
-                text="⚠ Pasta de saída não configurada — defina em Preferências"
-            )
-            self.output_warning.pack(fill="x", padx=16, pady=(4, 0))
-        else:
-            self.output_warning.pack_forget()
-
         if reasons:
             self.generate_btn.configure(state="disabled")
             self.generate_tooltip.configure(text=" | ".join(reasons))
         else:
             self.generate_btn.configure(state="normal")
             self.generate_tooltip.configure(text="")
-
-    def _open_preferences(self):
-        PreferencesWindow(self, on_save=self._on_preferences_saved)
-
-    def _on_preferences_saved(self, config: dict):
-        self.config = config
-        templates_folder = get_templates_folder(config)
-        self.section_templates.load_defaults(templates_folder)
-        self._update_generate_button()
 
     def _generate(self):
         """Generate documents for selected clients."""
@@ -263,7 +222,8 @@ class MainWindow(ctk.CTk):
         self.progress.pack(fill="x", padx=16, pady=(5, 0))
         self.progress.set(0)
 
-        output_folder = get_output_folder(self.config)
+        # Create timestamped output folder automatically
+        output_folder = create_output_folder()
         templates = self.section_templates.templates
         doc_types = [dt for dt, var in self.doc_vars.items() if var.get()]
 
@@ -332,12 +292,19 @@ class MainWindow(ctk.CTk):
                     doc_label = DOC_LABELS.get(r["doc_type"], r["doc_type"])
                     details.append(f"✕ {nome} — {doc_label}: {r['error']}")
 
+        folder_display = output_folder
+
         if fail_count == 0:
-            msg = f"✔ {success_count} documento(s) gerado(s) com sucesso!\n" + "\n".join(details)
+            msg = (
+                f"✔ {success_count} documento(s) gerado(s) com sucesso!\n"
+                f"Pasta: {folder_display}\n"
+                + "\n".join(details)
+            )
             self.result_label.configure(text=msg, text_color=STATUS_OK)
         else:
             msg = (
                 f"✔ {success_count} sucesso(s) | ✕ {fail_count} falha(s)\n"
+                f"Pasta: {folder_display}\n"
                 + "\n".join(details)
             )
             self.result_label.configure(text=msg, text_color=AVISO)

@@ -2,7 +2,6 @@
 
 import os
 import sys
-import json
 import tempfile
 import shutil
 
@@ -42,12 +41,6 @@ def output_dir(tmp_dir):
     out = os.path.join(tmp_dir, "output")
     os.makedirs(out)
     return out
-
-
-@pytest.fixture
-def config_file(tmp_dir):
-    """Create a temporary config.json path."""
-    return os.path.join(tmp_dir, "config.json")
 
 
 @pytest.fixture
